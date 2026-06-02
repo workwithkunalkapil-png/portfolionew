@@ -1785,21 +1785,6 @@ function buildCards(trackId, dotsId, data, type) {
       const key = trackId === 'track-reels' ? 'reels' : 'films';
       const cur = state[key];
       if (i === cur) {
-        // Replace thumbnail with iframe on active card click
-        const thumb = card.querySelector('.cine-thumb');
-        const existing = thumb.querySelector('iframe');
-        if (!existing) {
-          const img = thumb.querySelector('.cine-yt-thumb');
-          if (img) img.style.opacity = '0';
-          const iframe = document.createElement('iframe');
-          iframe.src = `${d.url}?autoplay=1&mute=0`;
-          iframe.title = d.title;
-          iframe.frameBorder = '0';
-          iframe.allow = 'autoplay; fullscreen';
-          iframe.allowFullscreen = true;
-          iframe.style.cssText = 'position:absolute;inset:0;width:100%;height:100%;border:0;';
-          thumb.insertBefore(iframe, thumb.firstChild);
-        }
         openModal(d.url);
       } else {
         state[key] = i;
