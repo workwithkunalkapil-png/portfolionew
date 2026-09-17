@@ -41,8 +41,8 @@ a{color:inherit;text-decoration:none}
 
 /* Continuous contour lines: one page-wide field, each section draws its slice behind its content */
 .topo-wrap{position:absolute;inset:0;pointer-events:none;z-index:-1;clip-path:inset(0);color:#e2e2d8}
-.topo-wrap canvas{position:sticky;top:0;display:block;width:100%;height:100vh;height:100svh}
-.sheet .topo-wrap canvas,.stage>.topo-wrap canvas{position:absolute;inset:0;height:100%}
+.topo-wrap canvas{position:sticky;top:calc(-1*var(--topoM,0px));margin-top:calc(-1*var(--topoM,0px));display:block;width:100%;height:calc(100vh + 2*var(--topoM,0px));height:calc(100svh + 2*var(--topoM,0px))}
+.sheet .topo-wrap canvas,.stage>.topo-wrap canvas{position:absolute;left:0;right:0;top:calc(-1*var(--topoM,0px));height:calc(100% + 2*var(--topoM,0px));margin:0}
 .stage,.results,.hof,.store,.partners,.socials,.foot,.kin .statement{isolation:isolate}
 .stage>.topo-wrap,.foot .topo-wrap,.kin .topo-wrap{color:#394030}
 .hof .topo-wrap{color:#24261f}
@@ -274,7 +274,7 @@ body.ready .hero-title h1 .ln:nth-child(2)>span{transition-delay:.65s}
 body.ready .hero-title h2 .ln>span{transition-delay:.8s}
 
 /* Showreel card: translucent grey overlay */
-.sheet::after{content:"";position:absolute;inset:0;background:#6d6d66;opacity:var(--ov,0);mix-blend-mode:multiply;pointer-events:none;z-index:3}
+.sheet::after{content:"";position:absolute;inset:0;background:#000;opacity:calc(var(--ov,0)*.58);pointer-events:none;z-index:3}
 
 /* Kinetic statement (pinned) */
 .kin{position:relative;height:230vh}
@@ -462,7 +462,7 @@ body.ready .hero-title h2 .ln>span{transition-delay:.8s}
   .hero-title{text-align:center;top:calc(66px + env(safe-area-inset-top))}
   .hero-title h1{font-size:clamp(50px,16vw,78px)}
   .hero-title h2{font-size:10px;letter-spacing:.06em}
-  .portrait{width:222vw;height:84%}
+  .portrait{width:222vw;height:calc(100% - 92px - 30vw - env(safe-area-inset-top))}
   .hero-card{bottom:calc(16px + env(safe-area-inset-bottom))}
   /* statement: centred, heavier and tighter like the reference */
   .kin .statement p{font-size:clamp(34px,11.2vw,48px);line-height:.95}
@@ -474,6 +474,12 @@ body.ready .hero-title h2 .ln>span{transition-delay:.8s}
   .socials .links a{padding:10px 8px}
   .fcol a{padding:4px 0}
   #reel .close{top:calc(14px + env(safe-area-inset-top));width:44px;height:44px}
+}
+/* touch devices: drop backdrop blurs, they repaint on every scrolled frame */
+@media (hover:none),(pointer:coarse){
+  .hero-card{-webkit-backdrop-filter:none;backdrop-filter:none;background:rgba(236,236,228,.94)}
+  .wkind{-webkit-backdrop-filter:none;backdrop-filter:none;background:rgba(17,17,18,.85)}
+  .xray-btn>span{-webkit-backdrop-filter:none;backdrop-filter:none;background:rgba(244,244,237,.95)}
 }
 /* phones held sideways: ask for portrait, as the reference does */
 @media (orientation:landscape) and (max-height:500px) and (pointer:coarse){
@@ -758,22 +764,45 @@ const Topo=(()=>{
   }
   const contentScroll=y=>pins.reduce((v,p)=>v-Math.min(Math.max(y-p.start,0),p.len),y);
 
-  const layers=[...document.querySelectorAll('.topo-wrap canvas')].map(cv=>({cv,ctx:cv.getContext('2d'),wrap:cv.parentElement,w:0,h:0}));
+  const layers=[...document.querySelectorAll('.topo-wrap canvas')].map(cv=>({cv,ctx:cv.getContext('2d'),wrap:cv.parentElement,w:0,h:0,ty:0,o:null,color:''}));
+  // Phones: each canvas is drawn with an overscan margin above and below. While the page scrolls the drawn
+  // lines are only slid with a GPU transform; a real redraw happens when scrolling pauses (slow morph) or
+  // once the slide would run past the margin. Desktop keeps redrawing at ~30fps.
+  let M=0;
+  const setMargin=()=>{if(!LITE)return;M=Math.round(innerHeight*.3);document.documentElement.style.setProperty('--topoM',M+'px');layers.forEach(L=>L.o=null)};
+  setMargin();
+  let lastScrollT=-1e9;
+  addEventListener('scroll',()=>{lastScrollT=performance.now()},{passive:true});
   let last=0, vals=new Float32Array(0);
   function frame(now){
     requestAnimationFrame(frame);
-    if(document.hidden||now-last<(LITE?50:33))return;
-    last=now;
-    const vh=innerHeight, t=reduce?0:now*MORPH, dpr=Math.min(LITE?1.5:2,devicePixelRatio||1);
+    if(document.hidden)return;
+    const scrolling=LITE&&now-lastScrollT<160;
+    const due=now-last>=(LITE?110:33);
+    if(!LITE&&!due)return;
+    if(due&&!scrolling)last=now;
+    const vh=innerHeight, t=reduce?0:now*MORPH, dpr=Math.min(LITE?1:2,devicePixelRatio||1);
     const scroll=contentScroll(scrollY)*PARALLAX, cx0=document.documentElement.clientWidth/2;
     for(const L of layers){
-      const r=L.cv.getBoundingClientRect();
-      if(r.bottom<=0||r.top>=vh||r.width===0||r.height===0)continue;
+      if(L.skip&&L.skip())continue;
+      const rr=L.cv.getBoundingClientRect();
+      const r={left:rr.left,top:rr.top-L.ty,width:rr.width,height:rr.height}; // untransformed position
+      if(r.top+r.height<=0||r.top>=vh||r.width===0||r.height===0){L.o=null;continue}
+      if(LITE){
+        const d=(r.top+scroll)-L.o;
+        if(L.o!==null&&(scrolling||!due)&&Math.abs(d)<M*.85){
+          if(-d!==L.ty){L.ty=-d;L.cv.style.transform=`translate3d(0,${L.ty}px,0)`}
+          continue;
+        }
+        if(L.ty){L.ty=0;L.cv.style.transform=''}
+        L.o=r.top+scroll;
+      }
       const w=Math.round(r.width*dpr), h=Math.round(r.height*dpr);
-      if(L.w!==w||L.h!==h){L.cv.width=L.w=w;L.cv.height=L.h=h}
+      if(L.w!==w||L.h!==h){L.cv.width=L.w=w;L.cv.height=L.h=h;L.color=''}
       const ctx=L.ctx;
       ctx.setTransform(dpr,0,0,dpr,0,0); ctx.clearRect(0,0,r.width,r.height);
-      ctx.strokeStyle=getComputedStyle(L.wrap).color; ctx.lineWidth=1; ctx.lineCap='round';
+      if(!L.color||!LITE)L.color=getComputedStyle(L.wrap).color;
+      ctx.strokeStyle=L.color; ctx.lineWidth=1; ctx.lineCap='round';
       // sample the field over this canvas (field coords: page x from centre, parallax-scrolled y)
       const cols=Math.ceil(r.width/CELL)+1, rows=Math.ceil(r.height/CELL)+1, nx=cols+1;
       if(vals.length<nx*(rows+1))vals=new Float32Array(nx*(rows+1));
@@ -800,11 +829,13 @@ const Topo=(()=>{
     }
   }
   measurePins();
-  addEventListener('resize',measurePins);
+  addEventListener('resize',()=>{measurePins();if(M&&Math.abs(innerHeight*.3-M)>80)setMargin()});
   new ResizeObserver(()=>measurePins()).observe(document.body);
   requestAnimationFrame(frame);
   return {layers};
 })();
+let stageTopoCovered=true;
+{const st=Topo.layers.find(L=>L.wrap.parentElement.classList.contains('stage'));if(st)st.skip=()=>stageTopoCovered}
 
 // ===== Selected work: YouTube videos =====
 // id = YouTube video id. kind: 'video' (16:9) or 'short' (9:16). Cards show the YouTube thumbnail and open the
@@ -1230,19 +1261,25 @@ const TALL_HERO=matchMedia('(max-width:760px), (min-width:761px) and (max-width:
 const FACE=[425,222], HEAD_H=370;
 function onScroll(){
   const y=scrollY, vh=innerHeight, vw=innerWidth;
+  // read every measurement first, then write styles (mixing the two forces a layout per element, per frame)
+  const ir=intro.getBoundingClientRect(), kr=kin.getBoundingClientRect(), tr=tools.getBoundingClientRect(),
+        fr=fan.getBoundingClientRect(), ft=foot.getBoundingClientRect();
+  const parRects=pars.map(el=>el.parentElement.getBoundingClientRect());
+  const under=themed.filter(s=>{const r=s.getBoundingClientRect();return r.top<=30&&r.bottom>30}).pop();
+  const pW=portrait.offsetWidth, pH=portrait.offsetHeight, SH=sheet.clientHeight;
 
   // 1. Intro: the hero clips down into the showreel card
-  const ir=intro.getBoundingClientRect();
   const ip=clamp(-ir.top/(ir.height-vh));
   const e=ease(range(ip,.32,.7));
   const tallHero=TALL_HERO.matches;
   const cw=Math.min(340,vw*(tallHero?.8:.62)), ch=cw*.75;
   const it=(vh-ch)/2*e, il=(vw-cw)/2*e;
-  sheet.style.clipPath=`inset(${it}px ${il}px ${it}px ${il}px round ${14*e}px)`;
+  sheet.style.clipPath=e>0?`inset(${it}px ${il}px ${it}px ${il}px round ${14*e}px)`:'';
+  stageTopoCovered=e===0;
   if(tallHero){
     // phones/tablet portrait: the portrait is much wider than the card, so scale and shift it
     // until Kunal's head and shoulders sit centred in the card
-    const W=portrait.offsetWidth, H=portrait.offsetHeight, SH=sheet.clientHeight;
+    const W=pW, H=pH;
     const k=Math.min(W/772,H/580);                                // svg viewBox 772×580, xMidYMax meet
     const fx=(vw-772*k)/2+FACE[0]*k, fy=SH-580*k+FACE[1]*k;       // face point in stage px
     const ox=vw/2, oy=SH-H/2;                                     // transform origin (portrait box centre)
@@ -1269,11 +1306,10 @@ function onScroll(){
   // Marquee rows + partner logos drift
   mqs.forEach(m=>m.style.transform=`translateX(${(-y*.35*m.dataset.speed)%1400-(m.dataset.speed>0?0:700)+(m.dataset.speed>0?-1:1)*mqOffset}px)`);
   plogos.style.transform=`translateX(${-(y*.3)%1200}px)`;
-  pars.forEach(el=>{const r=el.parentElement.getBoundingClientRect();el.style.transform=`translateY(${(r.top+r.height/2-vh/2)*el.dataset.p}px)`});
+  pars.forEach((el,i)=>{const r=parRects[i];el.style.transform=`translateY(${(r.top+r.height/2-vh/2)*el.dataset.p}px)`});
 
   // Statement word-by-word
   // 5. Kinetic statement: words slide up line by line, lime blocks mask and reveal
-  const kr=kin.getBoundingClientRect();
   const kp=clamp((vh*.5-kr.top)/(kr.height-vh*.5));
   kLines.forEach(line=>line.forEach((wm,j)=>{
     const at=line.masked?line.start:line.start+j*.012;
@@ -1289,19 +1325,16 @@ function onScroll(){
 
 
   // 6. Tools: scrawled word draws in
-  const tr=tools.getBoundingClientRect();
   const tp=clamp((vh-tr.top)/(tr.height+vh*.4));
   swooshPath.style.strokeDashoffset=1-ease(range(tp,.02,.4));
   scrawlText.style.strokeDashoffset=1600*(1-range(tp,.22,.62));
   scrawlText.style.fillOpacity=range(tp,.5,.72);
 
   // 7. Social cards fan out
-  const fr=fan.getBoundingClientRect();
   fanP=clamp((vh-fr.top)/(vh*.85));
   fanUpdate();
 
   // 8. Footer: card grows, signature draws, thumbnail rises
-  const ft=foot.getBoundingClientRect();
   const fp=clamp((vh-ft.top)/ft.height);
   foot.style.setProperty('--fpad',`calc(14px + ${(1-ease(range(fp,0,.55)))*5}vw)`);
   const hp=ease(range(fp,.35,.95));
@@ -1310,7 +1343,6 @@ function onScroll(){
   footHelmet.style.setProperty('--ho',hp);
 
   // Header colour follows the section underneath (last match wins for overlapping/sticky sections)
-  const under=themed.filter(s=>{const r=s.getBoundingClientRect();return r.top<=30&&r.bottom>30}).pop();
   hdr.classList.toggle('light',!!under&&under.dataset.theme==='light');
 }
 let ticking=false;
