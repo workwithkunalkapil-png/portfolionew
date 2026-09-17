@@ -434,6 +434,56 @@ body.ready .hero-title h2 .ln>span{transition-delay:.8s}
   .foot-helmet{grid-column:1/-1;order:-1;margin:0 auto}
   .float{display:none}
 }
+/* ===== Phones: layout tuned like the reference's mobile build ===== */
+.xray-btn{display:none}
+.rotate-block{display:none}
+@media (hover:none),(pointer:coarse){
+  .xray-btn{position:absolute;right:16px;bottom:calc(16px + env(safe-area-inset-bottom));z-index:4;display:flex;align-items:center;gap:10px;border:0;background:none;padding:0;font:inherit;font-size:9px;font-weight:800;text-transform:uppercase;letter-spacing:.04em;color:var(--ink);cursor:pointer;-webkit-tap-highlight-color:transparent;translate:0 40px;transition:translate 1s cubic-bezier(.2,.85,.25,1.1) 1s}
+  body.ready .xray-btn{translate:0 0}
+  .xray-btn i{width:44px;height:44px;border-radius:10px;background:var(--lime);display:grid;place-items:center;transition:background .25s,color .25s,transform .25s}
+  .xray-btn:active i{transform:scale(.92)}
+  .xray-btn>span{background:rgba(244,244,237,.86);-webkit-backdrop-filter:blur(6px);backdrop-filter:blur(6px);padding:6px 9px;border-radius:999px}
+  .xray-btn .xb-on{display:none}
+  .xray-btn.on .xb-on{display:inline}
+  .xray-btn.on .xb-off{display:none}
+  .xray-btn.on i{background:var(--ink);color:var(--lime);animation:xbPulse 1.4s ease-in-out infinite}
+  @keyframes xbPulse{50%{box-shadow:0 0 0 6px rgba(210,255,0,.35)}}
+}
+@media (max-width:760px){
+  html,body{overflow-x:clip}
+  /* past the hero only the floating buttons stay, so the logo never sits over headings */
+  header:not(.at-hero) .logo{opacity:0;pointer-events:none}
+  .stat-shot{aspect-ratio:16/9}
+  .fcols{gap:28px 16px}
+  .fcol{text-align:center!important}
+  .foot-helmet{width:min(250px,64vw)}
+  .work{overflow-x:clip}
+  /* hero: centred name stack on top, portrait fills the rest of the screen */
+  .hero-title{text-align:center;top:calc(66px + env(safe-area-inset-top))}
+  .hero-title h1{font-size:clamp(50px,16vw,78px)}
+  .hero-title h2{font-size:10px;letter-spacing:.06em}
+  .portrait{width:222vw;height:84%}
+  .hero-card{bottom:calc(16px + env(safe-area-inset-bottom))}
+  /* statement: centred, heavier and tighter like the reference */
+  .kin .statement p{font-size:clamp(34px,11.2vw,48px);line-height:.95}
+  .statement small{margin-bottom:22px}
+  /* larger tap targets */
+  .menu-links a{padding:14px 0 12px}
+  .menu-social a{padding:11px 14px}
+  .socials .links{gap:10px;flex-wrap:wrap}
+  .socials .links a{padding:10px 8px}
+  .fcol a{padding:4px 0}
+  #reel .close{top:calc(14px + env(safe-area-inset-top));width:44px;height:44px}
+}
+/* phones held sideways: ask for portrait, as the reference does */
+@media (orientation:landscape) and (max-height:500px) and (pointer:coarse){
+  .rotate-block{position:fixed;inset:0;z-index:200;display:grid;place-content:center;justify-items:center;gap:22px;background:var(--lime);color:var(--ink);text-align:center;font-size:13px;font-weight:800;text-transform:uppercase;letter-spacing:.03em}
+  .rotate-block .serif{font-size:26px;text-transform:none;letter-spacing:0;font-weight:400}
+  .rb-phone{width:54px;height:92px;border:3px solid var(--ink);border-radius:12px;display:grid;place-items:center;animation:rbTurn 2.4s cubic-bezier(.6,0,.3,1) infinite}
+  .rb-phone b{font-weight:900;font-style:italic;letter-spacing:-.09em;font-size:18px}
+  @keyframes rbTurn{0%,20%{transform:rotate(-90deg)}55%,100%{transform:rotate(0)}}
+  body{overflow:hidden}
+}
 </style>
 </head>
 <body>
@@ -442,6 +492,8 @@ body.ready .hero-title h2 .ln>span{transition-delay:.8s}
   <div class="ld-strips"><i style="--d:0.21s"></i><i style="--d:0.15s"></i><i style="--d:0.09s"></i><i style="--d:0.03s"></i><i style="--d:0.03s"></i><i style="--d:0.09s"></i><i style="--d:0.15s"></i><i style="--d:0.21s"></i></div>
   <div class="ld-kk" aria-label="KK"><span class="ld-k"><b><span class="ld-roll"><i>K</i><i>K</i></span></b></span><span class="ld-k"><b><span class="ld-roll"><i>K</i><i>K</i></span></b></span></div>
 </div>
+
+<div class="rotate-block" aria-hidden="true"><div class="rb-phone"><b>KK</b></div><p><span class="serif">Please rotate your phone.</span><br>This reel plays vertical.</p></div>
 
 <header id="hdr" class="at-hero">
   <a class="logo" href="#top" aria-label="Kunal Kapil — back to top"><span class="logo-name"><span class="serif up">Kunal</span><b>KAPIL</b></span><span class="logo-kk" aria-hidden="true">KK</span></a>
@@ -490,6 +542,7 @@ body.ready .hero-title h2 .ln>span{transition-delay:.8s}
     </a>
     <div style="border-top:1px solid #cfcfc4;padding-top:8px">Creating<br>since 2024</div>
   </div>
+      <button class="xray-btn" id="xrayBtn" type="button" aria-pressed="false" aria-label="Scan with X-ray"><span class="xb-off">Tap to scan</span><span class="xb-on">Scanning</span><i><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M4 8V5a1 1 0 0 1 1-1h3M16 4h3a1 1 0 0 1 1 1v3M20 16v3a1 1 0 0 1-1 1h-3M8 20H5a1 1 0 0 1-1-1v-3M4 12h16"/></svg></i></button>
       <a class="sheet-link js-reel" id="sheetLink" href="#showreel" aria-label="Watch the showreel"></a>
     </div>
     <div class="sheet-cta" id="sheetCta">▶ Watch the showreel</div>
@@ -883,7 +936,7 @@ function drawSig(svg,p){
 const io=new IntersectionObserver(es=>es.forEach(e=>{if(e.isIntersecting){e.target.classList.add('in');io.unobserve(e.target)}}),{rootMargin:'0px 0px -12% 0px'});
 document.querySelectorAll('.rv,.lm,.rvm').forEach(el=>io.observe(el));
 
-const intro=$('intro'), sheet=$('sheet'), portrait=$('portrait'), heroTitle=$('heroTitle'), heroCard=$('heroCard'), stageMq=$('stageMq'), sheetCta=$('sheetCta'), sheetLink=$('sheetLink'), sig1=$('sig1');
+const intro=$('intro'), sheet=$('sheet'), portrait=$('portrait'), heroTitle=$('heroTitle'), heroCard=$('heroCard'), stageMq=$('stageMq'), sheetCta=$('sheetCta'), sheetLink=$('sheetLink'), sig1=$('sig1'), xrayBtn=$('xrayBtn');
 const tools=$('tools'), scrawlText=document.querySelector('#scrawl text');
 const foot=document.querySelector('footer'), footHelmet=document.querySelector('.foot-helmet');
 
@@ -1022,10 +1075,13 @@ const foot=document.querySelector('footer'), footHelmet=document.querySelector('
   // --- pointer (anywhere on the hero) ---
   let ax=-9,ay=-9,bx=-9,by=-9,hasPrev=false,speed=0,lastMove=0,raf=0,dirty=false,lastFrame=0;
   const atHero=()=>{const ir=introEl.getBoundingClientRect();return -ir.top<(ir.height-innerHeight)*.22&&document.body.classList.contains('ready')};
-  addEventListener('pointermove',e=>{
+  addEventListener('pointermove',e=>{if(!scanning)feed(e.clientX,e.clientY)},{passive:true});
+  // touch: a tap or the start of a drag leaves a splat too (a swipe soon turns into a scroll)
+  addEventListener('pointerdown',e=>{if(e.pointerType!=='mouse'&&!scanning){hasPrev=false;feed(e.clientX,e.clientY)}},{passive:true});
+  function feed(x,y){
     if(!atHero()){hasPrev=false;return}
     const r=cv.getBoundingClientRect();
-    const u=(e.clientX-r.left)/r.width, v=(e.clientY-r.top)/r.height, now=performance.now();
+    const u=(x-r.left)/r.width, v=(y-r.top)/r.height, now=performance.now();
     if(u<0||u>1||v<0||v>1){hasPrev=false;return}
     if(hasPrev){
       const d=Math.hypot((u-bx)*r.width,(v-by)*r.height), dt=Math.max(6,now-lastMove);
@@ -1035,7 +1091,27 @@ const foot=document.querySelector('footer'), footHelmet=document.querySelector('
     }else{ax=u;ay=v}
     bx=u;by=v;hasPrev=true;lastMove=now;dirty=true;
     kick();
-  },{passive:true});
+  }
+
+  // phones/tablets: "tap to scan" sweeps the X-ray over the portrait on its own (fingers scroll instead of hovering)
+  const scanBtn=document.getElementById('xrayBtn');
+  let scanning=false, scanRaf=0, scanT0=0;
+  function scanStep(now){
+    scanRaf=0;
+    if(!scanning)return;
+    if(!atHero()){setScan(false);return}
+    const t=(now-scanT0)*.001, ir=photoEl.getBoundingClientRect(), vw=innerWidth;
+    const cx=Math.min(vw*.5,ir.left+ir.width*.5), amp=Math.min(vw*.34,ir.width*.3);
+    const x=cx+Math.sin(t*1.25)*amp, y=ir.top+ir.height*(.46+Math.sin(t*.8+.6)*.26);
+    feed(x,y);
+    scanRaf=requestAnimationFrame(scanStep);
+  }
+  function setScan(on){
+    scanning=on; hasPrev=false;
+    if(scanBtn){scanBtn.classList.toggle('on',on);scanBtn.setAttribute('aria-pressed',on)}
+    if(on){ensureTextures();scanT0=performance.now();if(!scanRaf)scanRaf=requestAnimationFrame(scanStep)}
+  }
+  if(scanBtn)scanBtn.addEventListener('click',e=>{e.preventDefault();setScan(!scanning)});
   document.documentElement.addEventListener('mouseleave',()=>{hasPrev=false});
   // debounce resizes; ignore height-only changes from the mobile address bar showing/hiding
   let rsT=0, lastW=innerWidth;
@@ -1149,6 +1225,9 @@ document.fonts&&document.fonts.ready.then(()=>{layoutKinetic();onScroll()});
 {let kT=0,kW=innerWidth;addEventListener('resize',()=>{clearTimeout(kT);kT=setTimeout(()=>{if(innerWidth===kW)return;kW=innerWidth;layoutKinetic()},150)})}
 
 let mqOffset=0;
+// portrait framing inside the showreel card on tall screens (viewBox units: face centre, head+neck height)
+const TALL_HERO=matchMedia('(max-width:760px), (min-width:761px) and (max-width:1024px) and (orientation:portrait)');
+const FACE=[425,222], HEAD_H=370;
 function onScroll(){
   const y=scrollY, vh=innerHeight, vw=innerWidth;
 
@@ -1156,16 +1235,28 @@ function onScroll(){
   const ir=intro.getBoundingClientRect();
   const ip=clamp(-ir.top/(ir.height-vh));
   const e=ease(range(ip,.32,.7));
-  const cw=Math.min(340,vw*.62), ch=cw*.75;
+  const tallHero=TALL_HERO.matches;
+  const cw=Math.min(340,vw*(tallHero?.8:.62)), ch=cw*.75;
   const it=(vh-ch)/2*e, il=(vw-cw)/2*e;
   sheet.style.clipPath=`inset(${it}px ${il}px ${it}px ${il}px round ${14*e}px)`;
-  portrait.style.transform=`translateX(-50%) scale(${lerp(1,.5,e)})`;
+  if(tallHero){
+    // phones/tablet portrait: the portrait is much wider than the card, so scale and shift it
+    // until Kunal's head and shoulders sit centred in the card
+    const W=portrait.offsetWidth, H=portrait.offsetHeight, SH=sheet.clientHeight;
+    const k=Math.min(W/772,H/580);                                // svg viewBox 772×580, xMidYMax meet
+    const fx=(vw-772*k)/2+FACE[0]*k, fy=SH-580*k+FACE[1]*k;       // face point in stage px
+    const ox=vw/2, oy=SH-H/2;                                     // transform origin (portrait box centre)
+    const s=lerp(1,Math.min(1,ch*.92/(HEAD_H*k)),e);
+    const tx=e*(vw/2-ox-s*(fx-ox)), ty=e*(vh/2-oy-s*(fy-oy));
+    portrait.style.transform=`translateX(-50%) translate(${tx}px,${ty}px) scale(${s})`;
+  }else portrait.style.transform=`translateX(-50%) scale(${lerp(1,.5,e)})`;
   sheet.style.setProperty('--ov',range(ip,.55,.72)*.32);
   const fade=1-range(ip,.24,.34);
   heroTitle.style.opacity=heroCard.style.opacity=fade;
   hdr.classList.toggle('at-hero',fade>.5); // big hero title visible → header shows only the KK mark
   heroTitle.style.transform=`translateY(${(1-fade)*-40}px)`;
   heroCard.style.pointerEvents=fade>.5?'auto':'none';
+  if(xrayBtn){xrayBtn.style.opacity=fade;xrayBtn.style.pointerEvents=fade>.5?'auto':'none'}
   const mqIn=ease(range(ip,.42,.72));
   stageMq.style.opacity=range(ip,.42,.6);
   mqOffset=(1-mqIn)*vw*.6;
