@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<title>Kunal Kapil </title>
+<title>Kunal Kapil — AI Video Creator &amp; Creative Editor</title>
 <meta name="description" content="Kunal Kapil is an AI video creator and creative editor making brand films, music videos, short films and social content with generative AI and sharp editing.">
 <meta name="author" content="Kunal Kapil">
 <meta name="theme-color" content="#f4f4ed">
@@ -24,7 +24,7 @@
 <!-- Fonts + hero image -->
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Mona+Sans:wdth,wght@75..125,200..900&family=DM+Serif+Display&family=Caveat:wght@700&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Mona+Sans:wdth,wght@75..100,400..900&family=DM+Serif+Display&family=Caveat:wght@700&display=swap" rel="stylesheet">
 <link rel="preload" as="image" href="assets/kunal.png" fetchpriority="high">
 <style>
 :root{
@@ -41,8 +41,9 @@ a{color:inherit;text-decoration:none}
 
 /* Continuous contour lines: one page-wide field, each section draws its slice behind its content */
 .topo-wrap{position:absolute;inset:0;pointer-events:none;z-index:-1;clip-path:inset(0);color:#e2e2d8}
-.topo-wrap canvas{position:sticky;top:calc(-1*var(--topoM,0px));margin-top:calc(-1*var(--topoM,0px));display:block;width:100%;height:calc(100vh + 2*var(--topoM,0px));height:calc(100svh + 2*var(--topoM,0px))}
-.sheet .topo-wrap canvas,.stage>.topo-wrap canvas{position:absolute;left:0;right:0;top:calc(-1*var(--topoM,0px));height:calc(100% + 2*var(--topoM,0px));margin:0}
+.topo-wrap canvas{position:sticky;top:0;display:block;width:100%;height:100vh;height:100svh}
+.sheet .topo-wrap canvas,.stage>.topo-wrap canvas{position:absolute;inset:0;height:100%}
+html.topo-static .topo-wrap canvas{position:absolute;top:0;left:0;bottom:auto;height:100%;margin:0}
 .stage,.results,.hof,.store,.partners,.socials,.foot,.kin .statement{isolation:isolate}
 .stage>.topo-wrap,.foot .topo-wrap,.kin .topo-wrap{color:#394030}
 .hof .topo-wrap{color:#24261f}
@@ -695,7 +696,7 @@ function startSite(){
   setTimeout(()=>ld.classList.add('gone'),1600);
 }
 (()=>{
-  const MIN_MS=matchMedia('(prefers-reduced-motion: reduce)').matches?300:1800;
+  const MIN_MS=matchMedia('(prefers-reduced-motion: reduce)').matches?300:1200;
   const t0=performance.now(); let done=0;
   const need=3, hit=()=>{if(++done===need)finish()};
   // wait for fonts, the portrait image and the window load (whichever order), but never less than MIN_MS
@@ -767,72 +768,82 @@ const Topo=(()=>{
   }
   const contentScroll=y=>pins.reduce((v,p)=>v-Math.min(Math.max(y-p.start,0),p.len),y);
 
-  const layers=[...document.querySelectorAll('.topo-wrap canvas')].map(cv=>({cv,ctx:cv.getContext('2d'),wrap:cv.parentElement,w:0,h:0,ty:0,o:null,color:''}));
-  // Phones: each canvas is drawn with an overscan margin above and below. While the page scrolls the drawn
-  // lines are only slid with a GPU transform; a real redraw happens when scrolling pauses (slow morph) or
-  // once the slide would run past the margin. Desktop keeps redrawing at ~30fps.
-  let M=0;
-  const setMargin=()=>{if(!LITE)return;M=Math.round(innerHeight*.3);document.documentElement.style.setProperty('--topoM',M+'px');layers.forEach(L=>L.o=null)};
-  setMargin();
-  let lastScrollT=-1e9;
-  addEventListener('scroll',()=>{lastScrollT=performance.now()},{passive:true});
+  const layers=[...document.querySelectorAll('.topo-wrap canvas')].map(cv=>({cv,ctx:cv.getContext('2d'),wrap:cv.parentElement,w:0,h:0,drawn:false}));
   let last=0, vals=new Float32Array(0);
+
+  // Paint one canvas. The field is sampled in page coordinates offset by `scroll`.
+  function drawLayer(L,r,scroll,t,dpr){
+    const cx0=document.documentElement.clientWidth/2;
+    const w=Math.round(r.width*dpr), h=Math.round(r.height*dpr);
+    if(L.w!==w||L.h!==h){L.cv.width=L.w=w;L.cv.height=L.h=h}
+    const ctx=L.ctx;
+    ctx.setTransform(dpr,0,0,dpr,0,0); ctx.clearRect(0,0,r.width,r.height);
+    ctx.strokeStyle=getComputedStyle(L.wrap).color; ctx.lineWidth=1; ctx.lineCap='round';
+    const cols=Math.ceil(r.width/CELL)+1, rows=Math.ceil(r.height/CELL)+1, nx=cols+1;
+    if(vals.length<nx*(rows+1))vals=new Float32Array(nx*(rows+1));
+    let min=Infinity,max=-Infinity;
+    for(let j=0;j<=rows;j++){const fy=r.top+scroll+j*CELL;for(let i=0;i<=cols;i++){const v=field(r.left+i*CELL-cx0,fy,t);vals[j*nx+i]=v;if(v<min)min=v;if(v>max)max=v}}
+    ctx.beginPath();
+    for(let lv=Math.ceil(min/STEP)*STEP+STEP*.5; lv<max; lv+=STEP){
+      for(let j=0;j<rows;j++)for(let i=0;i<cols;i++){
+        const tl=vals[j*nx+i],tr=vals[j*nx+i+1],br=vals[(j+1)*nx+i+1],bl=vals[(j+1)*nx+i];
+        const c=(tl>lv?8:0)|(tr>lv?4:0)|(br>lv?2:0)|(bl>lv?1:0);
+        if(c===0||c===15)continue;
+        const x=i*CELL, y=j*CELL;
+        const T=[x+CELL*(lv-tl)/(tr-tl),y], B=[x+CELL*(lv-bl)/(br-bl),y+CELL], Lp=[x,y+CELL*(lv-tl)/(bl-tl)], R=[x+CELL,y+CELL*(lv-tr)/(br-tr)];
+        const seg=(p,q)=>{ctx.moveTo(p[0],p[1]);ctx.lineTo(q[0],q[1])};
+        switch(c){
+          case 1:case 14:seg(Lp,B);break; case 2:case 13:seg(B,R);break;
+          case 3:case 12:seg(Lp,R);break; case 4:case 11:seg(T,R);break;
+          case 6:case 9:seg(T,B);break;   case 7:case 8:seg(Lp,T);break;
+          case 5:seg(Lp,T);seg(B,R);break; case 10:seg(T,R);seg(Lp,B);break;
+        }
+      }
+    }
+    ctx.stroke();
+  }
+
+  // Phones: each section's lines are painted once, over the section's whole height, and then just scroll with
+  // the page like any image — no canvas work per frame, and nothing for the main thread to keep in sync with
+  // a swipe (that sync was what made the lines stutter). They hold still instead of morphing.
+  function staticPass(now){
+    if(now-last<100)return; last=now;
+    const vh=innerHeight;
+    for(const L of layers){
+      const r=L.cv.getBoundingClientRect();
+      if(r.bottom<-vh*1.2||r.top>vh*2.2){ // far away: release the canvas memory
+        if(L.w){L.cv.width=L.cv.height=L.w=L.h=0;L.drawn=false}
+        continue;
+      }
+      if(r.width===0||r.height===0)continue;
+      if(L.drawn&&L.w===Math.round(r.width)&&L.h===Math.round(r.height))continue;
+      drawLayer(L,{left:r.left,top:r.top,width:r.width,height:r.height},scrollY,0,1);
+      L.drawn=true;
+      break; // at most one section per pass, so redraws never pile up into a stutter
+    }
+  }
+
   function frame(now){
     requestAnimationFrame(frame);
     if(document.hidden)return;
-    const scrolling=LITE&&now-lastScrollT<160;
-    const due=now-last>=(LITE?110:33);
-    if(!LITE&&!due)return;
-    if(due&&!scrolling)last=now;
-    const vh=innerHeight, t=reduce?0:now*MORPH, dpr=Math.min(LITE?1:2,devicePixelRatio||1);
-    const scroll=contentScroll(scrollY)*PARALLAX, cx0=document.documentElement.clientWidth/2;
+    if(LITE){staticPass(now);return}
+    if(now-last<33)return; last=now;
+    const vh=innerHeight, t=reduce?0:now*MORPH, dpr=Math.min(2,devicePixelRatio||1);
+    const scroll=contentScroll(scrollY)*PARALLAX;
     for(const L of layers){
       if(L.skip&&L.skip())continue;
-      const rr=L.cv.getBoundingClientRect();
-      const r={left:rr.left,top:rr.top-L.ty,width:rr.width,height:rr.height}; // untransformed position
-      if(r.top+r.height<=0||r.top>=vh||r.width===0||r.height===0){L.o=null;continue}
-      if(LITE){
-        const d=(r.top+scroll)-L.o;
-        if(L.o!==null&&(scrolling||!due)&&Math.abs(d)<M*.85){
-          if(-d!==L.ty){L.ty=-d;L.cv.style.transform=`translate3d(0,${L.ty}px,0)`}
-          continue;
-        }
-        if(L.ty){L.ty=0;L.cv.style.transform=''}
-        L.o=r.top+scroll;
-      }
-      const w=Math.round(r.width*dpr), h=Math.round(r.height*dpr);
-      if(L.w!==w||L.h!==h){L.cv.width=L.w=w;L.cv.height=L.h=h;L.color=''}
-      const ctx=L.ctx;
-      ctx.setTransform(dpr,0,0,dpr,0,0); ctx.clearRect(0,0,r.width,r.height);
-      if(!L.color||!LITE)L.color=getComputedStyle(L.wrap).color;
-      ctx.strokeStyle=L.color; ctx.lineWidth=1; ctx.lineCap='round';
-      // sample the field over this canvas (field coords: page x from centre, parallax-scrolled y)
-      const cols=Math.ceil(r.width/CELL)+1, rows=Math.ceil(r.height/CELL)+1, nx=cols+1;
-      if(vals.length<nx*(rows+1))vals=new Float32Array(nx*(rows+1));
-      let min=Infinity,max=-Infinity;
-      for(let j=0;j<=rows;j++){const fy=r.top+scroll+j*CELL;for(let i=0;i<=cols;i++){const v=field(r.left+i*CELL-cx0,fy,t);vals[j*nx+i]=v;if(v<min)min=v;if(v>max)max=v}}
-      ctx.beginPath();
-      for(let lv=Math.ceil(min/STEP)*STEP+STEP*.5; lv<max; lv+=STEP){
-        for(let j=0;j<rows;j++)for(let i=0;i<cols;i++){
-          const tl=vals[j*nx+i],tr=vals[j*nx+i+1],br=vals[(j+1)*nx+i+1],bl=vals[(j+1)*nx+i];
-          const c=(tl>lv?8:0)|(tr>lv?4:0)|(br>lv?2:0)|(bl>lv?1:0);
-          if(c===0||c===15)continue;
-          const x=i*CELL, y=j*CELL;
-          const T=[x+CELL*(lv-tl)/(tr-tl),y], B=[x+CELL*(lv-bl)/(br-bl),y+CELL], Lp=[x,y+CELL*(lv-tl)/(bl-tl)], R=[x+CELL,y+CELL*(lv-tr)/(br-tr)];
-          const seg=(p,q)=>{ctx.moveTo(p[0],p[1]);ctx.lineTo(q[0],q[1])};
-          switch(c){
-            case 1:case 14:seg(Lp,B);break; case 2:case 13:seg(B,R);break;
-            case 3:case 12:seg(Lp,R);break; case 4:case 11:seg(T,R);break;
-            case 6:case 9:seg(T,B);break;   case 7:case 8:seg(Lp,T);break;
-            case 5:seg(Lp,T);seg(B,R);break; case 10:seg(T,R);seg(Lp,B);break;
-          }
-        }
-      }
-      ctx.stroke();
+      const r=L.cv.getBoundingClientRect();
+      if(r.bottom<=0||r.top>=vh||r.width===0||r.height===0)continue;
+      drawLayer(L,r,scroll,t,dpr);
     }
   }
+  if(LITE){
+    document.documentElement.classList.add('topo-static');
+    let rt=0,rw=innerWidth;
+    addEventListener('resize',()=>{clearTimeout(rt);rt=setTimeout(()=>{if(innerWidth===rw)return;rw=innerWidth;layers.forEach(L=>L.drawn=false)},200)});
+  }
   measurePins();
-  addEventListener('resize',()=>{measurePins();if(M&&Math.abs(innerHeight*.3-M)>80)setMargin()});
+  addEventListener('resize',measurePins);
   new ResizeObserver(()=>measurePins()).observe(document.body);
   requestAnimationFrame(frame);
   return {layers};
@@ -846,7 +857,7 @@ let stageTopoCovered=true;
 const WORK=[
   {id:'Ta5uyQ8Zfa8', kind:'video', title:'P2P Lending Masterclass', channel:'1 Finance P2P'},
   {id:'AHO55rV-hzo', kind:'video', title:'Master 95% of Grok Bot in 15 Minutes', channel:'Arindam Majumder'},
-  {id:'vRWs7cSg9Wg', kind:'video', title:'AI Launch Video', channel:'Primesh'},
+  {id:'UYRTZMP03XM', kind:'video', title:'AI Launch Video', channel:'Primesh'},
   {id:'DRySZuAfnek', kind:'video', title:'When the prank goes too far', channel:'That Crazy Soul'},
   {id:'-BtDa5wv7Ok', kind:'short', title:'Podcast Reel', channel:'1 Finance'},
   {id:'2ZXN3qYS0d8', kind:'short', title:'AI Avatar', channel:'Arindam Majumder'},
@@ -862,13 +873,23 @@ const WORK=[
     const src=short?`https://i.ytimg.com/vi/${w.id}/oar2.jpg`:`https://i.ytimg.com/vi/${w.id}/maxresdefault.jpg`;
     const url=short?`https://youtube.com/shorts/${w.id}`:`https://youtu.be/${w.id}`;
     return `<a class="wcard rv" style="--d:${(i%(short?5:2))*.08}s" href="${url}" target="_blank" rel="noopener noreferrer" data-video="${w.id}" data-kind="${w.kind}" aria-label="Play ${esc(w.title)}">
-      <div class="wthumb"><img src="${src}" alt="" loading="lazy" decoding="async" onerror="this.onerror=null;this.src='https://i.ytimg.com/vi/${w.id}/hqdefault.jpg'"><span class="wkind">${short?'Short':'Video'}</span><span class="wplay">${play}</span></div>
+      <div class="wthumb"><img data-src="${src}" alt="" loading="lazy" decoding="async" onerror="this.onerror=null;this.src='https://i.ytimg.com/vi/${w.id}/hqdefault.jpg'"><span class="wkind">${short?'Short':'Video'}</span><span class="wplay">${play}</span></div>
       <div class="wmeta"><b>${esc(w.title)}</b><span>${esc(w.channel)}</span></div>
     </a>`;
   };
   const group=(label,kind,cls)=>{const items=WORK.filter(w=>w.kind===kind);
     return `<section class="wgroup"><div class="wgroup-head"><b>${label}</b><span>${String(items.length).padStart(2,'0')} ${items.length===1?'project':'projects'}</span></div><div class="wgrid ${cls}">${items.map(card).join('')}</div></section>`};
   document.getElementById('hgrid').innerHTML=group('Long-form','video','long')+group('Shorts','short','shorts');
+  // Fetch each thumbnail only once it is nearly on screen. Plain loading="lazy" downloaded them all up front
+  // here, because the collapsed sections above make the grid look close to the viewport.
+  const thumbs=[...document.querySelectorAll('.wthumb img[data-src]')];
+  if('IntersectionObserver'in window){
+    const io=new IntersectionObserver((es,obs)=>es.forEach(e=>{
+      if(!e.isIntersecting)return;
+      const img=e.target; img.src=img.dataset.src; img.removeAttribute('data-src'); obs.unobserve(img);
+    }),{rootMargin:'400px 0px'});
+    thumbs.forEach(img=>io.observe(img));
+  }else thumbs.forEach(img=>{img.src=img.dataset.src});
 }
 // Footer: same portrait (without the x-ray layer)
 {const c=document.querySelector('#portrait svg').cloneNode(true);c.removeAttribute('id');c.setAttribute('preserveAspectRatio','xMidYMax meet');c.style.transform='none';
